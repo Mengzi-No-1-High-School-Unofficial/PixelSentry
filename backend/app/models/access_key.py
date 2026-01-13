@@ -17,6 +17,8 @@ class AccessKey(Base):
         ForeignKey("submissions.id"), nullable=False, unique=True, index=True
     )
     access_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    paint_token: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="绘画 Token (UUID 格式)")
+    paint_token_obtained_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="Paint Token 获取时间")
     is_valid: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     last_validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     validation_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

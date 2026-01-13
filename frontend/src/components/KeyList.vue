@@ -6,6 +6,7 @@
                     <th>ID</th>
                     <th>UID</th>
                     <th>Access Key</th>
+                    <th>Paint Token</th>
                     <th>提交人</th>
                     <th>洛谷用户</th>
                     <th>状态</th>

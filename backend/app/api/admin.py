@@ -43,6 +43,8 @@ async def get_all_keys(
             id=key.id,
             accessKey=key.access_key,
             uid=key.submission.uid,
+            paintToken=key.paint_token,
+            paintTokenObtainedAt=key.paint_token_obtained_at.isoformat() + "Z" if key.paint_token_obtained_at else None,
             isValid=key.is_valid,
             lastValidatedAt=key.last_validated_at.isoformat() + "Z" if key.last_validated_at else None,
             validationCount=key.validation_count,
@@ -62,23 +64,26 @@ async def validate_key(
     db: AsyncSession = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """手动触发验证"""
+    """换取 Paint Token（同时完成校验）
+    
+    从 access_key 换取绘画用的 token（UUID 格式）。
+    此操作会调用 gettoken API，换取过程本身就完成了校验。
+    """
     result = await db.execute(select(AccessKey).where(AccessKey.id == key_id))
     key_record = result.scalar_one_or_none()
 
     if not key_record:
         raise HTTPException(status_code=404, detail="Access Key 不存在")
 
-    is_valid = await validation_service.validate_and_update(db, key_record)
-
-    # 获取验证结果
-    validation_result = await validation_service.validate_access_key(key_record.access_key)
+    # 换取 paint_token
+    exchange_result = await validation_service.exchange_paint_token(db, key_record)
 
     return ValidationResponse(
-        success=True,
+        success=exchange_result["success"],
+        message=exchange_result["message"],
         data=ValidationResult(
-            isValid=is_valid,
-            paintToken=validation_result.get("paint_token"),
+            isValid=exchange_result["success"],
+            paintToken=exchange_result["paint_token"],
         ),
     )
 

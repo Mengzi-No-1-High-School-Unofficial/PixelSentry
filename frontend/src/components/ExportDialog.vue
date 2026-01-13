@@ -16,6 +16,21 @@
                 <div v-if="step === 1">
                     <div class="form-control w-full max-w-xs mb-4">
                         <label class="label">
+                            <span class="label-text">导出类型</span>
+                        </label>
+                        <select v-model="config.exportType" class="select select-bordered w-full max-w-xs">
+                            <option value="accessKey">Access Key（原始密钥）</option>
+                            <option value="paintToken">Paint Token（绘画令牌）</option>
+                        </select>
+                        <label class="label">
+                            <span class="label-text-alt text-warning" v-if="config.exportType === 'paintToken'">
+                                注意：只会导出已换取 Paint Token 的记录
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="form-control w-full max-w-xs mb-4">
+                        <label class="label">
                             <span class="label-text">CD 时间 (ms)</span>
                         </label>
                         <input type="number" v-model="config.cd_time_ms" class="input input-bordered w-full max-w-xs" />
@@ -31,7 +46,8 @@
                                     </th>
                                     <th>ID</th>
                                     <th>UID</th>
-                                    <th>AccessKey</th>
+                                    <th v-if="config.exportType === 'accessKey'">AccessKey</th>
+                                    <th v-else>Paint Token</th>
                                     <th>提交人</th>
                                     <th>状态</th>
                                 </tr>
@@ -44,7 +60,13 @@
                                     </td>
                                     <td>{{ key.id }}</td>
                                     <td>{{ key.uid }}</td>
-                                    <td>{{ key.accessKey.substring(0, 8) }}...</td>
+                                    <td v-if="config.exportType === 'accessKey'">{{ key.accessKey.substring(0, 8) }}...
+                                    </td>
+                                    <td v-else>
+                                        <span v-if="key.paintToken" class="text-success">{{ key.paintToken.substring(0,
+                                            8) }}...</span>
+                                        <span v-else class="text-error">未换取</span>
+                                    </td>
                                     <td>{{ key.submitterName || '-' }}</td>
                                     <td>
                                         <div class="badge badge-sm"
@@ -105,16 +127,34 @@ const emit = defineEmits(['update:modelValue'])
 
 const step = ref(1)
 const config = ref({
-    cd_time_ms: 50
+    cd_time_ms: 50,
+    exportType: 'paintToken' as 'accessKey' | 'paintToken'
 })
 const selectedKeyIds = ref<number[]>([])
 
-// 默认选中所有有效 Key
+// 默认选中所有有效 Key（或已换取 Token 的 Key）
 watch(() => props.modelValue, (val) => {
     if (val) {
         step.value = 1
+        if (config.value.exportType === 'paintToken') {
+            // 只选中已换取 Paint Token 的 Key
+            selectedKeyIds.value = props.keys
+                .filter(k => k.isValid && k.paintToken)
+                .map(k => k.id)
+        } else {
+            // 选中所有有效 Key
+            selectedKeyIds.value = props.keys
+                .filter(k => k.isValid)
+                .map(k => k.id)
+        }
+    }
+})
+
+// 当导出类型改变时，重新选择
+watch(() => config.value.exportType, () => {
+    if (config.value.exportType === 'paintToken') {
         selectedKeyIds.value = props.keys
-            .filter(k => k.isValid)
+            .filter(k => k.isValid && k.paintToken && selectedKeyIds.value.includes(k.id))
             .map(k => k.id)
     }
 })
@@ -133,14 +173,30 @@ function toggleSelectAll() {
 
 const jsonPreview = computed(() => {
     const selectedKeys = props.keys.filter(k => selectedKeyIds.value.includes(k.id))
-    const data = {
-        cd_time_ms: config.value.cd_time_ms,
-        tokens: selectedKeys.map(k => ({
-            uid: parseInt(k.uid),
-            access_key: k.accessKey
-        }))
+
+    if (config.value.exportType === 'paintToken') {
+        // 导出 Paint Token 格式
+        const data = {
+            cd_time_ms: config.value.cd_time_ms,
+            tokens: selectedKeys
+                .filter(k => k.paintToken)  // 只包含已换取 token 的
+                .map(k => ({
+                    uid: parseInt(k.uid),
+                    token: k.paintToken
+                }))
+        }
+        return JSON.stringify(data, null, 2)
+    } else {
+        // 导出 Access Key 格式
+        const data = {
+            cd_time_ms: config.value.cd_time_ms,
+            tokens: selectedKeys.map(k => ({
+                uid: parseInt(k.uid),
+                access_key: k.accessKey
+            }))
+        }
+        return JSON.stringify(data, null, 2)
     }
-    return JSON.stringify(data, null, 2)
 })
 
 function close() {

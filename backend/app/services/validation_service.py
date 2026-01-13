@@ -100,6 +100,81 @@ class ValidationService:
         return validation_result["is_valid"]
 
     @staticmethod
+    async def exchange_paint_token(db: AsyncSession, key_record: AccessKey) -> dict:
+        """换取 Paint Token（从 access_key 获取绘画 token）
+        
+        这个方法会调用 gettoken API 来换取 paint_token。
+        换取过程本身就是一次校验（成功则有效，失败则无效）。
+        
+        Args:
+            db: 数据库会话
+            key_record: Access Key 记录
+            
+        Returns:
+            包含 success, paint_token, message 的字典
+        """
+        from sqlalchemy.orm import selectinload
+        from app.models.submission import Submission
+        
+        # 获取关联的 submission 以获取 uid
+        result = await db.execute(
+            select(Submission)
+            .where(Submission.id == key_record.submission_id)
+        )
+        submission = result.scalar_one_or_none()
+        
+        if not submission:
+            logger.error(f"Access Key {key_record.id} 没有关联的 submission")
+            return {
+                "success": False,
+                "paint_token": None,
+                "message": "没有关联的提交记录"
+            }
+        
+        # 调用 gettoken API 换取 paint_token
+        validation_result = await ValidationService.validate_access_key(
+            key_record.access_key, 
+            submission.uid
+        )
+
+        # 更新记录
+        if validation_result["is_valid"]:
+            key_record.paint_token = validation_result["paint_token"]
+            key_record.paint_token_obtained_at = datetime.utcnow()
+            key_record.is_valid = True
+            key_record.last_validated_at = datetime.utcnow()
+            key_record.validation_count += 1
+            
+            await db.commit()
+            
+            logger.info(
+                f"成功为 Access Key {key_record.access_key} 换取 Paint Token: "
+                f"{validation_result['paint_token'][:8]}..."
+            )
+            
+            return {
+                "success": True,
+                "paint_token": validation_result["paint_token"],
+                "message": "成功换取 Paint Token"
+            }
+        else:
+            # 换取失败，标记为无效
+            key_record.is_valid = False
+            key_record.last_validated_at = datetime.utcnow()
+            key_record.validation_count += 1
+            
+            await db.commit()
+            
+            error_msg = validation_result.get("response", {}).get("errorType", "未知错误")
+            logger.warning(f"换取 Paint Token 失败: {error_msg}")
+            
+            return {
+                "success": False,
+                "paint_token": None,
+                "message": f"换取失败: {error_msg}"
+            }
+
+    @staticmethod
     async def validate_all_keys(db: AsyncSession) -> dict[str, int]:
         """验证所有 Access Key"""
         result = await db.execute(select(AccessKey))

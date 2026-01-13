@@ -47,6 +47,8 @@ class AccessKeyInfo(BaseModel):
     id: int
     accessKey: str
     uid: str
+    paintToken: str | None = None
+    paintTokenObtainedAt: datetime | str | None = None
     isValid: bool
     lastValidatedAt: datetime | str | None = None
     validationCount: int

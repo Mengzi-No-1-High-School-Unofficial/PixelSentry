@@ -15,6 +15,8 @@ export interface AccessKeyInfo {
     id: number
     accessKey: string
     uid: string
+    paintToken?: string
+    paintTokenObtainedAt?: string
     isValid: boolean
     validationCount: number
     lastValidatedAt?: string
