@@ -44,6 +44,14 @@ async def lifespan(app: FastAPI):
     # 初始化数据库
     await init_db()
     logger.info("数据库初始化完成")
+    
+    # 初始化 Camoufox 实例池
+    from app.utils.camoufox_pool import camoufox_pool
+    try:
+        await camoufox_pool.init()
+        logger.info("Camoufox 实例池初始化完成")
+    except Exception as e:
+        logger.error(f"Camoufox 实例池初始化失败: {e}")
 
     # 创建默认管理员账户
     async with AsyncSessionLocal() as db:
@@ -67,6 +75,13 @@ async def lifespan(app: FastAPI):
     logger.info("应用关闭中...")
     scheduler.shutdown()
     logger.info("调度器已关闭")
+    
+    # 清理 Camoufox 实例池
+    try:
+        await camoufox_pool.cleanup()
+        logger.info("Camoufox 实例池已清理")
+    except Exception as e:
+        logger.error(f"Camoufox 实例池清理失败: {e}")
 
 
 # 创建 FastAPI 应用

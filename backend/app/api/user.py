@@ -12,6 +12,9 @@ from app.schemas.api import (
     SubmitResponse,
 )
 from app.services.token_service import token_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["用户"])
 
@@ -48,6 +51,8 @@ async def get_submission_status(submission_id: int, db: AsyncSession = Depends(g
 
     if not submission:
         raise HTTPException(status_code=404, detail="提交记录不存在")
+
+    logger.info(f"查询提交 {submission.id} 状态: {submission.status}")
 
     data = {
         "id": submission.id,
@@ -86,14 +91,8 @@ async def submit_batch(request: BatchSubmitRequest, db: AsyncSession = Depends(g
                 "error": str(e)
             })
     
-    succeeded = sum(1 for s in submissions if s["success"])
-    failed = sum(1 for s in submissions if not s["success"])
-    
     return {
         "success": True,
         "submissions": submissions,
-        "total": len(request.pasteIds),
-        "succeeded": succeeded,
-        "failed": failed,
-        "message": f"批量提交完成：成功创建 {succeeded} 个提交，失败 {failed} 个"
+        "message": f"批量提交完成，共创建 {len(submissions)} 个提交"
     }

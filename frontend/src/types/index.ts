@@ -18,6 +18,8 @@ export interface AccessKeyInfo {
     validationCount: number
     lastValidatedAt?: string
     createdAt: string
+    submitterName?: string
+    username?: string
     submission?: Submission
 }
 

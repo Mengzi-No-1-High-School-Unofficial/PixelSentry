@@ -40,6 +40,8 @@ async def get_all_keys(
             lastValidatedAt=key.last_validated_at,
             validationCount=key.validation_count,
             createdAt=key.created_at,
+            submitterName=key.submitter_name,
+            username=key.username,
         )
         for key in keys
     ]

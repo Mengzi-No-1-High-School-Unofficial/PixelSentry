@@ -50,6 +50,8 @@ class AccessKeyInfo(BaseModel):
     lastValidatedAt: datetime | None
     validationCount: int
     createdAt: datetime
+    submitterName: str | None = None
+    username: str | None = None
 
     class Config:
         from_attributes = True

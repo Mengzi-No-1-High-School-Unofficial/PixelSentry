@@ -39,6 +39,8 @@ class TokenService:
                     submission_id=submission.id,
                     access_key=result["access_key"],
                     is_valid=True,
+                    submitter_name=submission.submitter_name,
+                    username=submission.username,
                 )
                 db.add(access_key_record)
 
@@ -97,6 +99,8 @@ class TokenService:
                     submission_id=submission.id,
                     access_key=result["access_key"],
                     is_valid=True,
+                    submitter_name=submission.submitter_name,
+                    username=submission.username,
                 )
                 db.add(access_key_record)
 

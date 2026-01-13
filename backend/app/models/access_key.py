@@ -23,6 +23,8 @@ class AccessKey(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
+    submitter_name: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="提交人")
+    username: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="洛谷用户名")
 
     # 关系
     submission: Mapped["Submission"] = relationship("Submission", back_populates="access_key_record")

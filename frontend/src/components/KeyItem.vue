@@ -13,6 +13,8 @@
                 </button>
             </div>
         </td>
+        <td>{{ keyInfo.submitterName || '-' }}</td>
+        <td>{{ keyInfo.username || '-' }}</td>
         <td>
             <div class="badge" :class="keyInfo.isValid ? 'badge-success' : 'badge-error'">
                 {{ keyInfo.isValid ? '有效' : '无效' }}
