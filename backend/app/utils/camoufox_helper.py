@@ -40,6 +40,17 @@ class CamoufoxHelper:
                     # 等待页面加载
                     await asyncio.sleep(2)
                     
+                    # 验证页面内容是否包含 lgs_register_verification
+                    page_content = await page.content()
+                    if 'lgs_register_verification' not in page_content:
+                        logger.error(f"剪贴板 {paste_id} 页面不包含 lgs_register_verification 字样")
+                        return {
+                            "success": False,
+                            "uid": None,
+                            "username": None,
+                            "error": "剪贴板内容无效，请确保剪贴板包含正确的验证信息"
+                        }
+                    
                     # 查找用户链接 - 使用多个选择器作为备选
                     selectors = [
                         'a[href^="/user/"]',
