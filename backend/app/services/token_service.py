@@ -58,11 +58,82 @@ class TokenService:
             await db.commit()
 
     @staticmethod
+    async def retry_submission(
+        db: AsyncSession, submission: Submission, force_full: bool = False
+    ) -> None:
+        """智能重试提交
+        
+        Args:
+            db: 数据库会话
+            submission: 提交记录
+            force_full: 是否强制完整重试（忽略已有的 login_token）
+        """
+        try:
+            # 更新状态为处理中
+            submission.status = SubmissionStatus.PROCESSING
+            submission.error_message = None
+            await db.commit()
+
+            # 如果已有 login_token 且不强制完整重试，只重试 AccessKey 获取（幂等）
+            if submission.login_token and not force_full:
+                logger.info(f"提交 {submission.id} 已有 login_token，只重试 AccessKey 获取")
+                result = await camoufox_helper.get_access_key(submission.login_token)
+            else:
+                # 完整重试（非幂等，会生成新的 login_token）
+                logger.info(f"提交 {submission.id} 执行完整重试")
+                result = await camoufox_helper.get_full_token_flow(
+                    submission.uid, submission.paste_id
+                )
+
+            if result["success"]:
+                # 成功获取
+                if "login_token" in result:
+                    submission.login_token = result["login_token"]
+                submission.access_key = result["access_key"]
+                submission.status = SubmissionStatus.SUCCESS
+
+                # 创建或更新 Access Key 记录
+                access_key_record = AccessKey(
+                    submission_id=submission.id,
+                    access_key=result["access_key"],
+                    is_valid=True,
+                )
+                db.add(access_key_record)
+
+                logger.info(f"提交 {submission.id} 重试成功")
+            else:
+                # 失败
+                submission.status = SubmissionStatus.FAILED
+                submission.error_message = result.get("error", "Unknown error")
+                logger.error(f"提交 {submission.id} 重试失败: {submission.error_message}")
+
+            await db.commit()
+
+        except Exception as e:
+            logger.error(f"重试提交 {submission.id} 时发生异常: {e}")
+            submission.status = SubmissionStatus.FAILED
+            submission.error_message = str(e)
+            await db.commit()
+
+    @staticmethod
     async def create_and_process_submission(
-        db: AsyncSession, uid: str, paste_id: str
+        db: AsyncSession, uid: str | None, paste_id: str
     ) -> Submission:
         """创建提交并启动后台处理"""
         from app.database import AsyncSessionLocal
+        
+        # 如果没有提供 UID，从剪贴板解析
+        if not uid:
+            logger.info(f"未提供 UID，尝试从剪贴板 {paste_id} 解析")
+            result = await camoufox_helper.get_uid_from_paste_id(paste_id)
+            
+            if not result["success"]:
+                error_msg = result.get("error", "未知错误")
+                logger.error(f"无法从剪贴板解析 UID: {error_msg}")
+                raise ValueError(f"无法获取 UID: {error_msg}")
+            
+            uid = result["uid"]
+            logger.info(f"成功从剪贴板解析出 UID: {uid}")
         
         # 创建提交记录
         submission = Submission(uid=uid, paste_id=paste_id, status=SubmissionStatus.PENDING)

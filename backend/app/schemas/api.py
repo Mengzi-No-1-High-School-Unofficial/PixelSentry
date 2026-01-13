@@ -16,7 +16,7 @@ class BaseResponse(BaseModel):
 class SubmitRequest(BaseModel):
     """提交请求"""
 
-    uid: str = Field(..., min_length=1, max_length=50, description="洛谷用户 ID")
+    uid: str | None = Field(None, min_length=1, max_length=50, description="洛谷用户 ID（可选，如不提供将自动从剪贴板解析）")
     pasteId: str = Field(..., min_length=1, max_length=50, description="剪贴板 ID")
 
 

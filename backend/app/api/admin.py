@@ -1,4 +1,6 @@
 """管理员 API 路由"""
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,3 +113,88 @@ async def get_stats(
     )
 
     return StatsResponse(success=True, data=data)
+
+
+@router.get("/submissions")
+async def get_all_submissions(
+    db: AsyncSession = Depends(get_db),
+    current_user: AdminUser = Depends(get_current_user),
+):
+    """获取所有提交记录"""
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(Submission)
+        .options(selectinload(Submission.access_key_record))
+        .order_by(Submission.created_at.desc())
+    )
+    submissions = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": s.id,
+                "uid": s.uid,
+                "pasteId": s.paste_id,
+                "status": s.status,
+                "loginToken": s.login_token[:20] + "..." if s.login_token else None,
+                "accessKey": s.access_key,
+                "errorMessage": s.error_message,
+                "createdAt": s.created_at.isoformat(),
+            }
+            for s in submissions
+        ],
+    }
+
+
+@router.post("/retry/{submission_id}")
+async def retry_submission(
+    submission_id: int,
+    force_full: bool = False,
+    db: AsyncSession = Depends(get_db),
+    current_user: AdminUser = Depends(get_current_user),
+):
+    """手动重试失败的提交
+    
+    Args:
+        submission_id: 提交 ID
+        force_full: 是否强制完整重试（默认 False，会智能判断）
+            - False: 如果已有 login_token，只重试 AccessKey 获取（幂等）
+            - True: 完整重试，重新获取 login_token（非幂等）
+    """
+    from app.database import AsyncSessionLocal
+    from app.services.token_service import TokenService
+    
+    result = await db.execute(
+        select(Submission).where(Submission.id == submission_id)
+    )
+    submission = result.scalar_one_or_none()
+
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    if submission.status == SubmissionStatus.SUCCESS:
+        raise HTTPException(status_code=400, detail="提交已成功，无需重试")
+
+    if submission.status == SubmissionStatus.PROCESSING:
+        raise HTTPException(status_code=400, detail="提交正在处理中，请稍后再试")
+
+    # 启动后台任务重试（使用新的数据库会话）
+    async def background_retry():
+        async with AsyncSessionLocal() as task_db:
+            result = await task_db.execute(
+                select(Submission).where(Submission.id == submission_id)
+            )
+            task_submission = result.scalar_one()
+            await TokenService.retry_submission(task_db, task_submission, force_full)
+
+    asyncio.create_task(background_retry())
+
+    retry_type = "完整重试" if force_full else "智能重试"
+    return {
+        "success": True,
+        "message": f"已启动{retry_type}",
+        "submissionId": submission_id,
+        "retryType": retry_type,
+    }

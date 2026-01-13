@@ -1,18 +1,14 @@
-/**
- * 管理面板状态管理
- */
 import { adminApi } from '@/api/admin'
-import type { AccessKeyInfo, StatsData } from '@/types'
+import type { AccessKeyInfo, Stats, Submission } from '@/types'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useAdminStore = defineStore('admin', () => {
-    // 状态
     const keys = ref<AccessKeyInfo[]>([])
-    const stats = ref<StatsData | null>(null)
+    const submissions = ref<Submission[]>([])
+    const stats = ref<Stats | null>(null)
     const loading = ref(false)
 
-    // 获取所有 Key
     async function fetchKeys() {
         loading.value = true
         try {
@@ -20,40 +16,78 @@ export const useAdminStore = defineStore('admin', () => {
             if (response.success) {
                 keys.value = response.data
             }
+        } catch (error) {
+            console.error('获取 Keys 失败:', error)
+            throw error
         } finally {
             loading.value = false
         }
     }
 
-    // 验证 Key
-    async function validateKey(keyId: number) {
-        const response = await adminApi.validateKey(keyId)
-        if (response.success) {
-            // 更新本地状态
-            const key = keys.value.find(k => k.id === keyId)
-            if (key) {
-                key.isValid = response.data.isValid
-                key.validationCount += 1
-                key.lastValidatedAt = new Date().toISOString()
+    async function fetchSubmissions() {
+        loading.value = true
+        try {
+            const response = await adminApi.getSubmissions()
+            if (response.success) {
+                submissions.value = response.data
             }
+        } catch (error) {
+            console.error('获取提交记录失败:', error)
+            throw error
+        } finally {
+            loading.value = false
         }
-        return response
     }
 
-    // 获取统计信息
     async function fetchStats() {
-        const response = await adminApi.getStats()
-        if (response.success) {
-            stats.value = response.data
+        try {
+            const response = await adminApi.getStats()
+            if (response.success) {
+                stats.value = response.data
+            }
+        } catch (error) {
+            console.error('获取统计信息失败:', error)
+            throw error
+        }
+    }
+
+    async function validateKey(keyId: number) {
+        try {
+            const response = await adminApi.validateKey(keyId)
+            if (response.success) {
+                // 重新获取列表
+                await fetchKeys()
+            }
+            return response
+        } catch (error) {
+            console.error('验证 Key 失败:', error)
+            throw error
+        }
+    }
+
+    async function retrySubmission(submissionId: number, forceFull: boolean = false) {
+        try {
+            const response = await adminApi.retrySubmission(submissionId, forceFull)
+            if (response.success) {
+                // 重新获取提交列表
+                await fetchSubmissions()
+            }
+            return response
+        } catch (error) {
+            console.error('重试提交失败:', error)
+            throw error
         }
     }
 
     return {
         keys,
+        submissions,
         stats,
         loading,
         fetchKeys,
-        validateKey,
+        fetchSubmissions,
         fetchStats,
+        validateKey,
+        retrySubmission,
     }
 })

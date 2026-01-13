@@ -6,11 +6,11 @@
             <form @submit.prevent="handleSubmit">
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text">洛谷用户 ID</span>
+                        <span class="label-text">洛谷用户 ID（可选）</span>
                     </label>
-                    <input v-model="uid" type="text" placeholder="例如: 111" class="input input-bordered" required />
+                    <input v-model="uid" type="text" placeholder="例如: 111（留空将自动从剪贴板解析）" class="input input-bordered" />
                     <label class="label">
-                        <span class="label-text-alt">您的洛谷账户 ID</span>
+                        <span class="label-text-alt">如不填写，系统将自动从剪贴板解析 UID</span>
                     </label>
                 </div>
 
@@ -55,7 +55,8 @@
             <div class="text-sm text-base-content/70">
                 <p class="mb-2">📝 <strong>使用说明：</strong></p>
                 <ul class="list-disc list-inside space-y-1 ml-2">
-                    <li>填写您的洛谷用户 ID 和云剪贴板 ID</li>
+                    <li>填写云剪贴板 ID（必填）</li>
+                    <li>UID 可选填，留空将自动从剪贴板解析</li>
                     <li>系统将自动获取 Access Key</li>
                     <li>处理过程可能需要 10-30 秒</li>
                     <li>提交后可在下方查看处理状态</li>
@@ -86,7 +87,7 @@ async function handleSubmit() {
 
     try {
         const response = await userApi.submit({
-            uid: uid.value,
+            uid: uid.value.trim() || undefined,  // 空字符串转为 undefined
             pasteId: pasteId.value,
         })
 

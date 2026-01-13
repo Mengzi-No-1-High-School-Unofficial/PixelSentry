@@ -15,16 +15,22 @@
       <!-- 统计面板 -->
       <StatsPanel class="mb-8" />
 
+      <!-- 标签页 -->
+      <div class="tabs tabs-boxed mb-4">
+        <a class="tab" :class="{ 'tab-active': activeTab === 'keys' }" @click="activeTab = 'keys'">
+          Access Key 列表
+        </a>
+        <a class="tab" :class="{ 'tab-active': activeTab === 'submissions' }" @click="activeTab = 'submissions'">
+          提交记录
+        </a>
+      </div>
+
       <!-- Access Key 列表 -->
-      <div class="card bg-base-100 shadow-xl">
+      <div v-show="activeTab === 'keys'" class="card bg-base-100 shadow-xl">
         <div class="card-body">
           <div class="flex justify-between items-center mb-4">
             <h2 class="card-title">Access Key 列表</h2>
-            <button 
-              @click="refreshKeys" 
-              class="btn btn-primary btn-sm"
-              :class="{ loading: adminStore.loading }"
-            >
+            <button @click="refreshKeys" class="btn btn-primary btn-sm" :class="{ loading: adminStore.loading }">
               刷新
             </button>
           </div>
@@ -32,29 +38,61 @@
           <KeyList />
         </div>
       </div>
+
+      <!-- 提交记录列表 -->
+      <div v-show="activeTab === 'submissions'" class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="card-title">提交记录</h2>
+            <button @click="refreshSubmissions" class="btn btn-primary btn-sm" :class="{ loading: adminStore.loading }">
+              刷新
+            </button>
+          </div>
+
+          <SubmissionList />
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useAdminStore } from '@/stores/admin'
-import StatsPanel from '@/components/StatsPanel.vue'
 import KeyList from '@/components/KeyList.vue'
+import StatsPanel from '@/components/StatsPanel.vue'
+import SubmissionList from '@/components/SubmissionList.vue'
+import { useAdminStore } from '@/stores/admin'
+import { useAuthStore } from '@/stores/auth'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const adminStore = useAdminStore()
 
+const activeTab = ref<'keys' | 'submissions'>('keys')
+
 onMounted(async () => {
-  await refreshKeys()
+  await refreshAll()
 })
 
 async function refreshKeys() {
   await Promise.all([
     adminStore.fetchKeys(),
+    adminStore.fetchStats(),
+  ])
+}
+
+async function refreshSubmissions() {
+  await Promise.all([
+    adminStore.fetchSubmissions(),
+    adminStore.fetchStats(),
+  ])
+}
+
+async function refreshAll() {
+  await Promise.all([
+    adminStore.fetchKeys(),
+    adminStore.fetchSubmissions(),
     adminStore.fetchStats(),
   ])
 }

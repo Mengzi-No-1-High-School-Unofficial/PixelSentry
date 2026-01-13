@@ -17,6 +17,76 @@ class CamoufoxHelper:
         self.headless = settings.CAMOUFOX_HEADLESS
         self.timeout = settings.CAMOUFOX_TIMEOUT
 
+    async def get_uid_from_paste_id(self, paste_id: str) -> dict:
+        """从剪贴板 ID 获取 UID
+        
+        Args:
+            paste_id: 剪贴板 ID
+            
+        Returns:
+            {"success": bool, "uid": str, "error": str}
+        """
+        try:
+            async with AsyncCamoufox(headless=self.headless) as browser:
+                page = await browser.new_page()
+                
+                try:
+                    # 访问剪贴板页面
+                    await page.goto(
+                        f"https://www.luogu.com/paste/{paste_id}",
+                        timeout=self.timeout
+                    )
+                    
+                    # 等待页面加载
+                    await asyncio.sleep(2)
+                    
+                    # 查找用户链接 - 使用多个选择器作为备选
+                    selectors = [
+                        'a[href^="/user/"]',
+                        '.author a[href^="/user/"]',
+                        '.lfe-caption a[href^="/user/"]',
+                    ]
+                    
+                    user_link = None
+                    for selector in selectors:
+                        try:
+                            user_link = await page.query_selector(selector)
+                            if user_link:
+                                break
+                        except Exception:
+                            continue
+                    
+                    if not user_link:
+                        logger.error(f"无法在剪贴板页面找到用户链接")
+                        return {
+                            "success": False,
+                            "uid": None,
+                            "error": "无法找到用户信息，可能是私有剪贴板"
+                        }
+                    
+                    # 获取 href 属性
+                    href = await user_link.get_attribute('href')
+                    
+                    # 解析 UID
+                    if href and '/user/' in href:
+                        uid = href.split('/user/')[-1].split('?')[0].split('#')[0]
+                        logger.info(f"成功从剪贴板 {paste_id} 解析出 UID: {uid}")
+                        return {"success": True, "uid": uid, "error": None}
+                    else:
+                        logger.error(f"用户链接格式不正确: {href}")
+                        return {
+                            "success": False,
+                            "uid": None,
+                            "error": "用户链接格式不正确"
+                        }
+                        
+                finally:
+                    await page.close()
+                    
+        except Exception as e:
+            logger.error(f"从剪贴板获取 UID 失败: {e}")
+            return {"success": False, "uid": None, "error": str(e)}
+
     async def get_login_token(self, uid: str, paste_id: str) -> str:
         """获取登录 Token"""
         async with AsyncCamoufox(headless=self.headless) as browser:

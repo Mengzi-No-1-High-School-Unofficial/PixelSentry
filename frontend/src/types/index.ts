@@ -1,16 +1,22 @@
-/**
- * 类型定义
- */
-
-export interface SubmitRequest {
+export interface Submission {
+    id: number
     uid: string
     pasteId: string
+    status: 'pending' | 'processing' | 'success' | 'failed'
+    loginToken?: string
+    accessKey?: string
+    errorMessage?: string
+    createdAt: string
 }
 
-export interface SubmitResponse {
-    success: boolean
-    submissionId?: number
-    message?: string
+export interface AccessKeyInfo {
+    id: number
+    accessKey: string
+    isValid: boolean
+    validationCount: number
+    lastValidatedAt?: string
+    createdAt: string
+    submission?: Submission
 }
 
 export interface SubmissionStatus {
@@ -22,16 +28,7 @@ export interface SubmissionStatus {
     createdAt: string
 }
 
-export interface AccessKeyInfo {
-    id: number
-    accessKey: string
-    isValid: boolean
-    lastValidatedAt: string | null
-    validationCount: number
-    createdAt: string
-}
-
-export interface StatsData {
+export interface Stats {
     totalKeys: number
     validKeys: number
     totalSubmissions: number
@@ -43,10 +40,19 @@ export interface LoginRequest {
     password: string
 }
 
-export interface TokenResponse {
+export interface LoginResponse {
+    accessToken: string
+    refreshToken: string
+    tokenType: string
+}
+
+export interface RefreshRequest {
+    refreshToken: string
+}
+
+export interface ApiResponse<T = any> {
     success: boolean
-    accessToken?: string
-    refreshToken?: string
-    expiresIn?: number
     message?: string
+    data?: T
+    submissionId?: number
 }

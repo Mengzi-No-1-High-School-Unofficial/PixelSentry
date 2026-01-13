@@ -16,19 +16,39 @@ class ValidationService:
     """Access Key 验证服务"""
 
     @staticmethod
-    async def validate_access_key(access_key: str) -> dict:
-        """验证 Access Key 是否有效"""
+    async def validate_access_key(access_key: str, uid: str = None) -> dict:
+        """验证 Access Key 是否有效
+        
+        Args:
+            access_key: Access Key
+            uid: 用户 UID（如果不提供，将无法验证）
+        """
+        if not uid:
+            logger.warning("验证 Access Key 时未提供 UID，无法验证")
+            return {"is_valid": False, "paint_token": None, "response": {"error": "Missing UID"}}
+        
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(
-                    f"https://www.luogu.com.cn/paintboard/gettoken?token={access_key}"
+                response = await client.post(
+                    "https://paintboard.luogu.me/api/auth/gettoken",
+                    json={"uid": int(uid), "access_key": access_key},
+                    headers={"Content-Type": "application/json"}
                 )
-                data = response.json()
+                data = response.json()['data']
+                
+                print(data)
 
-                is_valid = data.get("success", False)
-                paint_token = data.get("token") if is_valid else None
-
-                return {"is_valid": is_valid, "paint_token": paint_token, "response": data}
+                # 检查响应
+                if "token" in data:
+                    # 成功获取 token
+                    return {"is_valid": True, "paint_token": data["token"], "response": data}
+                elif "errorType" in data:
+                    # 有错误
+                    logger.warning(f"验证失败: {data['errorType']}")
+                    return {"is_valid": False, "paint_token": None, "response": data}
+                else:
+                    # 未知响应
+                    return {"is_valid": False, "paint_token": None, "response": data}
 
         except Exception as e:
             logger.error(f"验证 Access Key 失败: {e}")
@@ -37,18 +57,36 @@ class ValidationService:
     @staticmethod
     async def validate_and_update(db: AsyncSession, key_record: AccessKey) -> bool:
         """验证并更新 Access Key 状态"""
-        result = await ValidationService.validate_access_key(key_record.access_key)
+        from sqlalchemy.orm import selectinload
+        from app.models.submission import Submission
+        
+        # 获取关联的 submission 以获取 uid
+        result = await db.execute(
+            select(Submission)
+            .where(Submission.id == key_record.submission_id)
+        )
+        submission = result.scalar_one_or_none()
+        
+        if not submission:
+            logger.error(f"Access Key {key_record.id} 没有关联的 submission")
+            return False
+        
+        # 验证
+        validation_result = await ValidationService.validate_access_key(
+            key_record.access_key, 
+            submission.uid
+        )
 
         # 更新记录
-        key_record.is_valid = result["is_valid"]
+        key_record.is_valid = validation_result["is_valid"]
         key_record.last_validated_at = datetime.utcnow()
         key_record.validation_count += 1
 
         # 创建验证日志
         log = ValidationLog(
             access_key_id=key_record.id,
-            is_valid=result["is_valid"],
-            response=result["response"],
+            is_valid=validation_result["is_valid"],
+            response=validation_result["response"],
         )
         db.add(log)
 
@@ -56,10 +94,10 @@ class ValidationService:
 
         logger.info(
             f"验证 Access Key {key_record.access_key}: "
-            f"{'有效' if result['is_valid'] else '无效'}"
+            f"{'有效' if validation_result['is_valid'] else '无效'}"
         )
 
-        return result["is_valid"]
+        return validation_result["is_valid"]
 
     @staticmethod
     async def validate_all_keys(db: AsyncSession) -> dict[str, int]:
