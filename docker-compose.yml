@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pixelsentry-postgres
+    environment:
+      POSTGRES_DB: pixelsentry
+      POSTGRES_USER: pixelsentry
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - pixelsentry-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pixelsentry"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: pixelsentry-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - pixelsentry-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: pixelsentry-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pixelsentry:${DB_PASSWORD:-changeme}@postgres:5432/pixelsentry
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      DEBUG: ${DEBUG:-False}
+      CORS_ORIGINS: http://localhost:3000,http://localhost:80
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - pixelsentry-network
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: pixelsentry-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - pixelsentry-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  pixelsentry-network:
+    driver: bridge
