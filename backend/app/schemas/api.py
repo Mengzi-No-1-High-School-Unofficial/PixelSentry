@@ -18,6 +18,14 @@ class SubmitRequest(BaseModel):
 
     uid: str | None = Field(None, min_length=1, max_length=50, description="洛谷用户 ID（可选，如不提供将自动从剪贴板解析）")
     pasteId: str = Field(..., min_length=1, max_length=50, description="剪贴板 ID")
+    submitterName: str | None = Field(None, min_length=1, max_length=100, description="提交人姓名（可选）")
+
+
+class BatchSubmitRequest(BaseModel):
+    """批量提交请求"""
+
+    pasteIds: list[str] = Field(..., min_length=1, max_length=50, description="剪贴板 ID 列表")
+    submitterName: str | None = Field(None, min_length=1, max_length=100, description="提交人姓名（可选）")
 
 
 class SubmitResponse(BaseResponse):

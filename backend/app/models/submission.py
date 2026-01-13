@@ -25,6 +25,8 @@ class Submission(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     uid: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     paste_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    submitter_name: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="提交人（用户自填）")
+    username: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="洛谷用户名（自动解析）")
     status: Mapped[SubmissionStatus] = mapped_column(
         String(20), default=SubmissionStatus.PENDING, nullable=False, index=True
     )

@@ -14,6 +14,14 @@ export const userApi = {
     },
 
     /**
+     * 批量提交剪贴板信息
+     */
+    async submitBatch(data: { pasteIds: string[]; submitterName?: string }): Promise<any> {
+        const response = await client.post('/submit/batch', data)
+        return response.data
+    },
+
+    /**
      * 查询提交状态
      */
     async getSubmissionStatus(submissionId: number): Promise<{ success: boolean; data: SubmissionStatus }> {

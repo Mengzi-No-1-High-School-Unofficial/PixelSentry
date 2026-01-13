@@ -9,13 +9,27 @@
       </div>
 
       <div class="max-w-2xl mx-auto">
-        <SubmitForm @submitted="handleSubmitted" />
-        
-        <StatusDisplay 
-          v-if="submissionId" 
-          :submission-id="submissionId" 
-          class="mt-8"
-        />
+        <!-- 标签页 -->
+        <div class="tabs tabs-boxed mb-4 justify-center">
+          <a class="tab" :class="{ 'tab-active': activeTab === 'single' }" @click="activeTab = 'single'">
+            单个提交
+          </a>
+          <a class="tab" :class="{ 'tab-active': activeTab === 'batch' }" @click="activeTab = 'batch'">
+            批量提交
+          </a>
+        </div>
+
+        <!-- 单个提交 -->
+        <div v-show="activeTab === 'single'">
+          <SubmitForm @submitted="handleSubmitted" />
+
+          <StatusDisplay v-if="submissionId" :submission-id="submissionId" class="mt-8" />
+        </div>
+
+        <!-- 批量提交 -->
+        <div v-show="activeTab === 'batch'">
+          <BatchSubmitForm />
+        </div>
       </div>
 
       <div class="text-center mt-12">
@@ -28,10 +42,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import SubmitForm from '@/components/SubmitForm.vue'
+import BatchSubmitForm from '@/components/BatchSubmitForm.vue'
 import StatusDisplay from '@/components/StatusDisplay.vue'
+import SubmitForm from '@/components/SubmitForm.vue'
+import { ref } from 'vue'
 
+const activeTab = ref<'single' | 'batch'>('single')
 const submissionId = ref<number | null>(null)
 
 function handleSubmitted(id: number) {

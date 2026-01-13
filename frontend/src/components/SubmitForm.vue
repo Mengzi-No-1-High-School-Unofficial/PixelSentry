@@ -16,12 +16,22 @@
 
                 <div class="form-control mt-4">
                     <label class="label">
-                        <span class="label-text">剪贴板 ID</span>
+                        <span class="label-text">提交人姓名（可选）</span>
                     </label>
-                    <input v-model="pasteId" type="text" placeholder="例如: ilovecz6" class="input input-bordered"
+                    <input v-model="submitterName" type="text" placeholder="例如: 张三" class="input input-bordered" />
+                    <label class="label">
+                        <span class="label-text-alt">用于标识提交人</span>
+                    </label>
+                </div>
+
+                <div class="form-control mt-4">
+                    <label class="label">
+                        <span class="label-text">剪贴板 ID 或 URL</span>
+                    </label>
+                    <input v-model="pasteId" type="text" placeholder="例如: ilovecz6 或完整 URL" class="input input-bordered"
                         required />
                     <label class="label">
-                        <span class="label-text-alt">云剪贴板的 ID</span>
+                        <span class="label-text-alt">云剪贴板的 ID 或完整链接</span>
                     </label>
                 </div>
 
@@ -55,7 +65,7 @@
             <div class="text-sm text-base-content/70">
                 <p class="mb-2">📝 <strong>使用说明：</strong></p>
                 <ul class="list-disc list-inside space-y-1 ml-2">
-                    <li>填写云剪贴板 ID（必填）</li>
+                    <li>填写剪贴板 ID 或完整 URL（必填）</li>
                     <li>UID 可选填，留空将自动从剪贴板解析</li>
                     <li>系统将自动获取 Access Key</li>
                     <li>处理过程可能需要 10-30 秒</li>
@@ -75,6 +85,7 @@ const emit = defineEmits<{
 }>()
 
 const uid = ref('')
+const submitterName = ref('')
 const pasteId = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -88,6 +99,7 @@ async function handleSubmit() {
     try {
         const response = await userApi.submit({
             uid: uid.value.trim() || undefined,  // 空字符串转为 undefined
+            submitterName: submitterName.value.trim() || undefined,
             pasteId: pasteId.value,
         })
 
@@ -97,6 +109,7 @@ async function handleSubmit() {
 
             // 清空表单
             uid.value = ''
+            submitterName.value = ''
             pasteId.value = ''
         } else {
             error.value = response.message || '提交失败'

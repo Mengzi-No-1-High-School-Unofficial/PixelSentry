@@ -117,10 +117,21 @@ class TokenService:
 
     @staticmethod
     async def create_and_process_submission(
-        db: AsyncSession, uid: str | None, paste_id: str
+        db: AsyncSession, uid: str | None, paste_id: str, submitter_name: str | None = None
     ) -> Submission:
         """创建提交并启动后台处理"""
         from app.database import AsyncSessionLocal
+        
+        # 如果 paste_id 是完整 URL，提取 ID
+        if paste_id.startswith('http://') or paste_id.startswith('https://'):
+            # 支持 https://www.luogu.com.cn/paste/xxx 或 https://www.luogu.com/paste/xxx
+            if '/paste/' in paste_id:
+                paste_id = paste_id.split('/paste/')[-1].split('?')[0].split('#')[0]
+                logger.info(f"从 URL 提取剪贴板 ID: {paste_id}")
+            else:
+                raise ValueError("无效的剪贴板 URL 格式")
+        
+        username = None  # 用户名（从剪贴板解析）
         
         # 如果没有提供 UID，从剪贴板解析
         if not uid:
@@ -133,10 +144,17 @@ class TokenService:
                 raise ValueError(f"无法获取 UID: {error_msg}")
             
             uid = result["uid"]
-            logger.info(f"成功从剪贴板解析出 UID: {uid}")
+            username = result.get("username")
+            logger.info(f"成功从剪贴板解析出 UID: {uid}, 用户名: {username}")
         
         # 创建提交记录
-        submission = Submission(uid=uid, paste_id=paste_id, status=SubmissionStatus.PENDING)
+        submission = Submission(
+            uid=uid, 
+            paste_id=paste_id, 
+            submitter_name=submitter_name,
+            username=username,
+            status=SubmissionStatus.PENDING
+        )
         db.add(submission)
         await db.commit()
         await db.refresh(submission)
