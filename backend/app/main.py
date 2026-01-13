@@ -59,15 +59,15 @@ async def lifespan(app: FastAPI):
             db, settings.ADMIN_USERNAME, settings.ADMIN_PASSWORD
         )
 
-    # 启动定时任务
-    scheduler.add_job(
-        scheduled_validation,
-        "interval",
-        minutes=settings.VALIDATION_INTERVAL_MINUTES,
-        id="validate_keys",
-    )
-    scheduler.start()
-    logger.info(f"定时验证任务已启动，间隔 {settings.VALIDATION_INTERVAL_MINUTES} 分钟")
+    # 禁用定时验证任务，因其实现不满足幂等性
+    # scheduler.add_job(
+    #     scheduled_validation,
+    #     "interval",
+    #     minutes=settings.VALIDATION_INTERVAL_MINUTES,
+    #     id="validate_keys",
+    # )
+    # scheduler.start()
+    # logger.info(f"定时验证任务已启动，间隔 {settings.VALIDATION_INTERVAL_MINUTES} 分钟")
 
     yield
 
