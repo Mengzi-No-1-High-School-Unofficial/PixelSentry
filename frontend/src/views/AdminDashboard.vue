@@ -4,7 +4,13 @@
       <div class="flex-1">
         <a class="btn btn-ghost normal-case text-xl">PixelSentry 管理面板</a>
       </div>
-      <div class="flex-none">
+      <div class="flex-none gap-2">
+        <button @click="router.push('/help')" class="btn btn-ghost btn-sm">
+          使用帮助
+        </button>
+        <button @click="router.push('/')" class="btn btn-ghost btn-sm">
+          回到首页
+        </button>
         <button @click="handleLogout" class="btn btn-ghost btn-sm">
           登出
         </button>
@@ -30,9 +36,15 @@
         <div class="card-body">
           <div class="flex justify-between items-center mb-4">
             <h2 class="card-title">Access Key 列表</h2>
-            <button @click="refreshKeys" class="btn btn-primary btn-sm" :class="{ loading: adminStore.loading }">
-              刷新
-            </button>
+            <div class="flex gap-2">
+              <button @click="showExportDialog = true" class="btn btn-secondary btn-sm"
+                :disabled="adminStore.keys.length === 0">
+                导出配置
+              </button>
+              <button @click="refreshKeys" class="btn btn-primary btn-sm" :class="{ loading: adminStore.loading }">
+                刷新
+              </button>
+            </div>
           </div>
 
           <KeyList />
@@ -53,10 +65,14 @@
         </div>
       </div>
     </div>
+
+    <!-- 导出对话框 -->
+    <ExportDialog v-model="showExportDialog" :keys="adminStore.keys" />
   </div>
 </template>
 
 <script setup lang="ts">
+import ExportDialog from '@/components/ExportDialog.vue'
 import KeyList from '@/components/KeyList.vue'
 import StatsPanel from '@/components/StatsPanel.vue'
 import SubmissionList from '@/components/SubmissionList.vue'
@@ -70,6 +86,7 @@ const authStore = useAuthStore()
 const adminStore = useAdminStore()
 
 const activeTab = ref<'keys' | 'submissions'>('keys')
+const showExportDialog = ref(false)
 
 onMounted(async () => {
   await refreshAll()

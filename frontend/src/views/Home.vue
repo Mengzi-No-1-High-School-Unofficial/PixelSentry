@@ -32,7 +32,10 @@
         </div>
       </div>
 
-      <div class="text-center mt-12">
+      <div class="text-center mt-12 flex justify-center gap-4">
+        <router-link to="/help" class="btn btn-ghost btn-sm">
+          使用帮助
+        </router-link>
         <router-link to="/admin/login" class="btn btn-ghost btn-sm">
           管理员登录
         </router-link>

@@ -26,80 +26,92 @@ class CamoufoxHelper:
         Returns:
             {"success": bool, "uid": str, "username": str, "error": str}
         """
+        from app.utils.camoufox_pool import camoufox_pool
+
         try:
-            async with AsyncCamoufox(headless=self.headless) as browser:
-                page = await browser.new_page()
+            # 使用复用的页面实例
+            page = await camoufox_pool.get_luogu_paste_page()
+            
+            try:
+                # 访问剪贴板页面
+                await page.goto(
+                    f"https://www.luogu.com/paste/{paste_id}",
+                    timeout=self.timeout
+                )
                 
+                # 等待页面加载
+                await asyncio.sleep(2)
+                
+                # 验证页面内容是否包含 lgs_register_verification
                 try:
-                    # 访问剪贴板页面
-                    await page.goto(
-                        f"https://www.luogu.com/paste/{paste_id}",
-                        timeout=self.timeout
-                    )
-                    
-                    # 等待页面加载
-                    await asyncio.sleep(2)
-                    
-                    # 验证页面内容是否包含 lgs_register_verification
                     page_content = await page.content()
-                    if 'lgs_register_verification' not in page_content:
-                        logger.error(f"剪贴板 {paste_id} 页面不包含 lgs_register_verification 字样")
-                        return {
-                            "success": False,
-                            "uid": None,
-                            "username": None,
-                            "error": "剪贴板内容无效，请确保剪贴板包含正确的验证信息"
-                        }
+                except Exception as e: 
+                    # retry once
+                    logger.warning(f"获取页面内容失败，重试: {e}")
+                    await asyncio.sleep(1)
+                    page_content = await page.content()
+
+                if 'lgs_register_verification' not in page_content:
+                    logger.error(f"剪贴板 {paste_id} 页面不包含 lgs_register_verification 字样")
+                    return {
+                        "success": False,
+                        "uid": None,
+                        "username": None,
+                        "error": "剪贴板内容无效，请确保剪贴板包含正确的验证信息"
+                    }
+                
+                # 查找用户链接 - 使用多个选择器作为备选
+                selectors = [
+                    'a[href^="/user/"]',
+                    '.author a[href^="/user/"]',
+                    '.lfe-caption a[href^="/user/"]',
+                ]
+                
+                user_link = None
+                for selector in selectors:
+                    try:
+                        user_link = await page.query_selector(selector)
+                        if user_link:
+                            break
+                    except Exception:
+                        continue
+                
+                if not user_link:
+                    logger.error(f"无法在剪贴板页面找到用户链接")
+                    return {
+                        "success": False,
+                        "uid": None,
+                        "username": None,
+                        "error": "无法找到用户信息，可能是私有剪贴板"
+                    }
+                
+                # 获取 href 属性
+                href = await user_link.get_attribute('href')
+                
+                # 获取用户名（链接的文本内容）
+                username_element = await user_link.query_selector('span')
+                username = await username_element.inner_text() if username_element else None
+                
+                # 解析 UID
+                if href and '/user/' in href:
+                    uid = href.split('/user/')[-1].split('?')[0].split('#')[0]
+                    logger.info(f"成功从剪贴板 {paste_id} 解析出 UID: {uid}, 用户名: {username}")
+                    return {"success": True, "uid": uid, "username": username, "error": None}
+                else:
+                    logger.error(f"用户链接格式不正确: {href}")
+                    return {
+                        "success": False,
+                        "uid": None,
+                        "username": None,
+                        "error": "用户链接格式不正确"
+                    }
                     
-                    # 查找用户链接 - 使用多个选择器作为备选
-                    selectors = [
-                        'a[href^="/user/"]',
-                        '.author a[href^="/user/"]',
-                        '.lfe-caption a[href^="/user/"]',
-                    ]
-                    
-                    user_link = None
-                    for selector in selectors:
-                        try:
-                            user_link = await page.query_selector(selector)
-                            if user_link:
-                                break
-                        except Exception:
-                            continue
-                    
-                    if not user_link:
-                        logger.error(f"无法在剪贴板页面找到用户链接")
-                        return {
-                            "success": False,
-                            "uid": None,
-                            "username": None,
-                            "error": "无法找到用户信息，可能是私有剪贴板"
-                        }
-                    
-                    # 获取 href 属性
-                    href = await user_link.get_attribute('href')
-                    
-                    # 获取用户名（链接的文本内容）
-                    username_element = await user_link.query_selector('span')
-                    username = await username_element.inner_text() if username_element else None
-                    
-                    # 解析 UID
-                    if href and '/user/' in href:
-                        uid = href.split('/user/')[-1].split('?')[0].split('#')[0]
-                        logger.info(f"成功从剪贴板 {paste_id} 解析出 UID: {uid}, 用户名: {username}")
-                        return {"success": True, "uid": uid, "username": username, "error": None}
-                    else:
-                        logger.error(f"用户链接格式不正确: {href}")
-                        return {
-                            "success": False,
-                            "uid": None,
-                            "username": None,
-                            "error": "用户链接格式不正确"
-                        }
-                        
-                finally:
-                    await page.close()
-                    
+            except Exception as e:
+                # 发生错误时，不要关闭页面，因为它是复用的
+                # 但可能需要重置或记录错误
+                logger.error(f"页面操作失败: {e}")
+                raise e
+                
         except Exception as e:
             logger.error(f"从剪贴板获取 UID 失败: {e}")
             return {"success": False, "uid": None, "username": None, "error": str(e)}

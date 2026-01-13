@@ -29,17 +29,24 @@ async def get_all_keys(
     current_user: AdminUser = Depends(get_current_user),
 ):
     """获取所有 Access Key"""
-    result = await db.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(AccessKey)
+        .options(selectinload(AccessKey.submission))
+        .order_by(AccessKey.created_at.desc())
+    )
     keys = result.scalars().all()
 
     data = [
         AccessKeyInfo(
             id=key.id,
             accessKey=key.access_key,
+            uid=key.submission.uid,
             isValid=key.is_valid,
-            lastValidatedAt=key.last_validated_at,
+            lastValidatedAt=key.last_validated_at.isoformat() + "Z" if key.last_validated_at else None,
             validationCount=key.validation_count,
-            createdAt=key.created_at,
+            createdAt=key.created_at.isoformat() + "Z",
             submitterName=key.submitter_name,
             username=key.username,
         )
@@ -139,11 +146,13 @@ async def get_all_submissions(
                 "id": s.id,
                 "uid": s.uid,
                 "pasteId": s.paste_id,
+                "submitterName": s.submitter_name,
+                "username": s.username,
                 "status": s.status,
                 "loginToken": s.login_token[:20] + "..." if s.login_token else None,
                 "accessKey": s.access_key,
                 "errorMessage": s.error_message,
-                "createdAt": s.created_at.isoformat(),
+                "createdAt": s.created_at.isoformat() + "Z",
             }
             for s in submissions
         ],

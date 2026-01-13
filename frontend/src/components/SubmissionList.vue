@@ -6,6 +6,8 @@
                     <th>ID</th>
                     <th>UID</th>
                     <th>剪贴板 ID</th>
+                    <th>提交人</th>
+                    <th>洛谷用户</th>
                     <th>状态</th>
                     <th>Login Token</th>
                     <th>Access Key</th>
@@ -16,12 +18,12 @@
             </thead>
             <tbody>
                 <tr v-if="adminStore.loading && submissions.length === 0">
-                    <td colspan="9" class="text-center py-8">
+                    <td colspan="11" class="text-center py-8">
                         <span class="loading loading-spinner loading-lg"></span>
                     </td>
                 </tr>
                 <tr v-else-if="submissions.length === 0">
-                    <td colspan="9" class="text-center py-8 text-base-content/50">
+                    <td colspan="11" class="text-center py-8 text-base-content/50">
                         暂无提交记录
                     </td>
                 </tr>

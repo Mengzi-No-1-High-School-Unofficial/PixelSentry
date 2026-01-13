@@ -46,10 +46,11 @@ class AccessKeyInfo(BaseModel):
 
     id: int
     accessKey: str
+    uid: str
     isValid: bool
-    lastValidatedAt: datetime | None
+    lastValidatedAt: datetime | str | None = None
     validationCount: int
-    createdAt: datetime
+    createdAt: datetime | str
     submitterName: str | None = None
     username: str | None = None
 

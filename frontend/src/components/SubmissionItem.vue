@@ -3,6 +3,8 @@
         <td>{{ submission.id }}</td>
         <td>{{ submission.uid }}</td>
         <td>{{ submission.pasteId }}</td>
+        <td>{{ submission.submitterName || '-' }}</td>
+        <td>{{ submission.username || '-' }}</td>
         <td>
             <div class="badge" :class="statusBadgeClass">
                 {{ statusText }}

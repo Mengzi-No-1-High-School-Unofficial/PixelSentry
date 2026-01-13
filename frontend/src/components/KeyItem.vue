@@ -1,6 +1,7 @@
 <template>
     <tr>
         <td>{{ keyInfo.id }}</td>
+        <td>{{ keyInfo.uid }}</td>
         <td>
             <div class="flex items-center gap-2">
                 <code class="text-sm">{{ keyInfo.accessKey }}</code>

@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/stores/auth'
 import AdminDashboard from '@/views/AdminDashboard.vue'
 import AdminLogin from '@/views/AdminLogin.vue'
+import Help from '@/views/Help.vue'
 import Home from '@/views/Home.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -11,6 +12,11 @@ const router = createRouter({
             path: '/',
             name: 'home',
             component: Home,
+        },
+        {
+            path: '/help',
+            name: 'help',
+            component: Help,
         },
         {
             path: '/admin/login',
@@ -27,7 +33,7 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
     const authStore = useAuthStore()
 
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {

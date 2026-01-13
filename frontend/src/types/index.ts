@@ -14,6 +14,7 @@ export interface Submission {
 export interface AccessKeyInfo {
     id: number
     accessKey: string
+    uid: string
     isValid: boolean
     validationCount: number
     lastValidatedAt?: string

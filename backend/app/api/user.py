@@ -62,7 +62,7 @@ async def get_submission_status(submission_id: int, db: AsyncSession = Depends(g
         if submission.access_key_record
         else None,
         "errorMessage": submission.error_message,
-        "createdAt": submission.created_at.isoformat(),
+        "createdAt": submission.created_at.isoformat() + "Z",
     }
 
     return SubmissionStatusResponse(success=True, data=data)
